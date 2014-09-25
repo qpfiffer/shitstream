@@ -13,8 +13,8 @@ from flask.ext import restless
 from lxml import html
 import requests
 
-from downloaders.youtube import regex as youtube_regex,\
-    download as download_youtube_url
+from downloaders.youtube import youtube_downloader
+from downloaders.soundcloud import soundcloud_downloader
 from emberify import emberify
 from mpd_util import mpd, mpd_connect
 import settings
@@ -27,6 +27,7 @@ def create_app():
         app.debug = True
     app.config['SECRET_KEY'] = 'secret!'
     app.config['SQLALCHEMY_DATABASE_URI'] = settings.db_uri
+    app.downloaders = [youtube_downloader, soundcloud_downloader]
     return app
 
 app = create_app()
@@ -109,15 +110,24 @@ def add_url_event(msg, mpdc=None):
 
     emit('response', {'msg': 'Received URL'})
 
-    if not youtube_regex.match(url):
+    # See if any REGEX match:
+    matched = False
+    matched_downloader = None
+    for downloader in app.downloaders:
+        if downloader.regex.match(url):
+            matched = True
+            matched_downloader = downloader()
+
+    # Nobody matched, ya dun fucked up
+    if not matched:
         emit('response', {'msg': 'URL does not appear to be valid'})
         return
 
     emit('response', {'msg': 'URL appears to be valid'})
-    emit('response', {'msg': 'Starting youtube-dl'})
+    emit('response', {'msg': 'Starting {}'.format(matched_downloader)})
 
     try:
-        filename = download_youtube_url(url, in_dir, emit)
+        filename = matched_downloader.download(url, in_dir, emit)
     except Exception as exception:
         emit('response', {'msg': str(exception)})
         emit('disconnect')
