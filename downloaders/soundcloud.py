@@ -2,11 +2,13 @@ from downloader import downloader
 import json, requests, re
 
 class soundcloud_downloader(downloader):
-    # https://soundcloud.com/neet/im-coming-too
     regex = re.compile("https?://(www\.)?soundcloud.com/.*")
 
     def download(self, url, target, emit):
-        page = requests.get(url)
+        headers = {
+            'User-Agent': 'Mozilla/5.0'
+        }
+        page = requests.get(url, headers=headers)
         raise NotImplementedError
 
     def __unicode__(self):
